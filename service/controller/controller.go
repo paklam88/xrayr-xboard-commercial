@@ -27,23 +27,24 @@ type LimitInfo struct {
 }
 
 type Controller struct {
-	server       *core.Instance
-	config       *Config
-	clientInfo   api.ClientInfo
-	apiClient    api.API
-	nodeInfo     *api.NodeInfo
-	Tag          string
-	userList     *[]api.UserInfo
-	tasks        []periodicTask
-	limitedUsers map[api.UserInfo]LimitInfo
-	warnedUsers  map[api.UserInfo]int
-	panelType    string
-	ibm          inbound.Manager
-	obm          outbound.Manager
-	stm          stats.Manager
-	dispatcher   *mydispatcher.DefaultDispatcher
-	startAt      time.Time
-	logger       *log.Entry
+	server          *core.Instance
+	config          *Config
+	clientInfo      api.ClientInfo
+	apiClient       api.API
+	nodeInfo        *api.NodeInfo
+	Tag             string
+	userList        *[]api.UserInfo
+	tasks           []periodicTask
+	limitedUsers    map[api.UserInfo]LimitInfo
+	warnedUsers     map[api.UserInfo]int
+	panelType       string
+	ibm             inbound.Manager
+	obm             outbound.Manager
+	stm             stats.Manager
+	dispatcher      *mydispatcher.DefaultDispatcher
+	startAt         time.Time
+	logger          *log.Entry
+	trafficReporter func(up, down int64)
 }
 
 type periodicTask struct {
@@ -72,6 +73,19 @@ func New(server *core.Instance, api api.API, config *Config, panelType string) *
 	}
 
 	return controller
+}
+
+// SetTrafficReporter registers a callback that receives aggregated traffic samples.
+func (c *Controller) SetTrafficReporter(fn func(up, down int64)) {
+	c.trafficReporter = fn
+}
+
+// ActiveUserCount returns the number of users currently loaded for this node.
+func (c *Controller) ActiveUserCount() int {
+	if c.userList == nil {
+		return 0
+	}
+	return len(*c.userList)
 }
 
 // Start implement the Start() function of the service interface
@@ -585,6 +599,14 @@ func (c *Controller) userInfoMonitor() (err error) {
 	}
 	if len(userTraffic) > 0 {
 		var err error // Define an empty error
+		if c.trafficReporter != nil {
+			var upSum, downSum int64
+			for _, t := range userTraffic {
+				upSum += t.Upload
+				downSum += t.Download
+			}
+			c.trafficReporter(upSum, downSum)
+		}
 		if !c.config.DisableUploadTraffic {
 			err = c.apiClient.ReportUserTraffic(&userTraffic)
 		}

@@ -1,5 +1,5 @@
 Log:
-  Level: warning # Log level: none, error, warning, info, debug
+  Level: warning # Log level: none, error, warning, info, debug 
   AccessPath: # /etc/XrayR/access.Log
   ErrorPath: # /etc/XrayR/error.log
 DnsConfigPath: # /etc/XrayR/dns.json # Path to dns config, check https://xtls.github.io/config/dns.html for help
@@ -11,7 +11,11 @@ ConnectionConfig:
   ConnIdle: 30 # Connection idle time limit, Second
   UplinkOnly: 2 # Time limit when the connection downstream is closed, Second
   DownlinkOnly: 4 # Time limit when the connection is closed after the uplink is closed, Second
-  BufferSize: 64 # The internal cache size of each connection, kB
+  BufferSize: 64 # The internal cache size of each connection, kB 
+# Optional Prometheus exporter for Grafana / multi-node ops
+Metrics:
+  Enable: false
+  Listen: "0.0.0.0:9091" # GET /metrics
 Nodes:
   - PanelType: "SSpanel" # Panel type: SSpanel, NewV2board, V2board, XBoard, PMpanel, Proxypanel, V2RaySocks, GoV2Panel, BunPanel
     ApiConfig:
@@ -88,6 +92,7 @@ Nodes:
   # - DeviceLimitWindow: sliding window (seconds) to reduce cellular handoff false kicks
   # - InactiveGCHours: prune idle limiter/stats metadata after N hours
   # - UpdatePeriodic: panel sync interval in seconds (pull users / push traffic / alive)
+  # - EnableAudit: inject local BT/SMTP/geoip:private/tracker blackhole rules
   # ---------------------------------------------------------------------------
   # - PanelType: "XBoard"
   #   ApiConfig:
@@ -107,6 +112,7 @@ Nodes:
   #     UpdatePeriodic: 15                     # Sync interval (seconds); pull/push/alive period
   #     DeviceLimitWindow: 60                  # Sliding window for device_limit (recommend 45~60)
   #     InactiveGCHours: 24                    # GC idle user limiter/stats after N hours
+  #     EnableAudit: true                      # Local BT/SMTP/private/tracker -> blackhole
   #     EnableDNS: false
   #     DNSType: AsIs
   #     EnableProxyProtocol: false

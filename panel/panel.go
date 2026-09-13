@@ -25,6 +25,7 @@ import (
 	"github.com/XrayR-project/XrayR/api/xboard"
 	"github.com/XrayR-project/XrayR/app/mydispatcher"
 	_ "github.com/XrayR-project/XrayR/cmd/distro/all"
+	"github.com/XrayR-project/XrayR/common/metrics"
 	"github.com/XrayR-project/XrayR/service"
 	"github.com/XrayR-project/XrayR/service/controller"
 )
@@ -36,6 +37,8 @@ type Panel struct {
 	Server      *core.Instance
 	Service     []service.Service
 	Running     bool
+	metrics     *metrics.Collector
+	metricsSrv  *metrics.Server
 }
 
 func New(panelConfig *Config) *Panel {
@@ -89,6 +92,11 @@ func (p *Panel) loadCore(panelConfig *Config) *core.Instance {
 			}
 		}
 	}
+	enableAudit := anyNodeEnableAudit(panelConfig.NodesConfig)
+	if enableAudit {
+		injectAuditRouting(coreRouterConfig)
+		log.Print("Local security audit routing enabled (BT/SMTP/private/trackers -> blackhole)")
+	}
 	routeConfig, err := coreRouterConfig.Build()
 	if err != nil {
 		log.Panicf("Failed to understand Routing config  Please check: https://xtls.github.io/config/routing.html for help: %s", err)
@@ -124,6 +132,9 @@ func (p *Panel) loadCore(panelConfig *Config) *core.Instance {
 		}
 	}
 	var outBoundConfig []*core.OutboundHandlerConfig
+	if enableAudit {
+		coreCustomOutboundConfig = ensureBlockOutbound(coreCustomOutboundConfig)
+	}
 	for _, config := range coreCustomOutboundConfig {
 		oc, err := config.Build()
 		if err != nil {
@@ -171,6 +182,16 @@ func (p *Panel) Start() {
 	}
 	p.Server = server
 
+	p.metrics = metrics.NewCollector(func() float64 {
+		total := 0
+		for _, s := range p.Service {
+			if c, ok := s.(*controller.Controller); ok {
+				total += c.ActiveUserCount()
+			}
+		}
+		return float64(total)
+	})
+
 	// Load Nodes config
 	for _, nodeConfig := range p.panelConfig.NodesConfig {
 		var apiClient api.API
@@ -202,7 +223,9 @@ func (p *Panel) Start() {
 				log.Panicf("Read Controller Config Failed")
 			}
 		}
-		controllerService = controller.New(server, apiClient, controllerConfig, nodeConfig.PanelType)
+		ctrl := controller.New(server, apiClient, controllerConfig, nodeConfig.PanelType)
+		ctrl.SetTrafficReporter(p.metrics.AddTraffic)
+		controllerService = ctrl
 		p.Service = append(p.Service, controllerService)
 
 	}
@@ -214,6 +237,19 @@ func (p *Panel) Start() {
 			log.Panicf("Panel Start failed: %s", err)
 		}
 	}
+
+	if p.panelConfig.Metrics != nil && p.panelConfig.Metrics.Enable {
+		listen := p.panelConfig.Metrics.Listen
+		if listen == "" {
+			listen = "0.0.0.0:9091"
+		}
+		srv, err := metrics.Start(listen, p.metrics)
+		if err != nil {
+			log.Panicf("Start metrics server failed: %s", err)
+		}
+		p.metricsSrv = srv
+	}
+
 	p.Running = true
 	return
 }
@@ -222,6 +258,10 @@ func (p *Panel) Start() {
 func (p *Panel) Close() {
 	p.access.Lock()
 	defer p.access.Unlock()
+	if p.metricsSrv != nil {
+		_ = p.metricsSrv.Close()
+		p.metricsSrv = nil
+	}
 	for _, s := range p.Service {
 		err := s.Close()
 		if err != nil {

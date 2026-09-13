@@ -12,7 +12,13 @@ type Config struct {
 	OutboundConfigPath string            `mapstructure:"OutboundConfigPath"`
 	RouteConfigPath    string            `mapstructure:"RouteConfigPath"`
 	ConnectionConfig   *ConnectionConfig `mapstructure:"ConnectionConfig"`
+	Metrics            *MetricsConfig    `mapstructure:"Metrics"`
 	NodesConfig        []*NodesConfig    `mapstructure:"Nodes"`
+}
+
+type MetricsConfig struct {
+	Enable bool   `mapstructure:"Enable"`
+	Listen string `mapstructure:"Listen"` // e.g. "0.0.0.0:9091"
 }
 
 type NodesConfig struct {

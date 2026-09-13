@@ -43,6 +43,11 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		Enabled:      true,
 		DestOverride: &conf.StringList{"http", "tls", "quic", "fakedns"},
 	}
+	if config.EnableAudit {
+		// Required for routing rule protocol:bittorrent to match sniffed metadata.
+		list := conf.StringList{"http", "tls", "quic", "fakedns", "bittorrent"}
+		sniffingConfig.DestOverride = &list
+	}
 	if config.DisableSniffing {
 		sniffingConfig.Enabled = false
 	}

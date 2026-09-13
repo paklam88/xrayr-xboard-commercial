@@ -18,6 +18,7 @@ type Config struct {
 	EnableFallback            bool                             `mapstructure:"EnableFallback"`
 	DisableIVCheck            bool                             `mapstructure:"DisableIVCheck"`
 	DisableSniffing           bool                             `mapstructure:"DisableSniffing"`
+	EnableAudit               bool                             `mapstructure:"EnableAudit"` // Local BT/DMCA audit routing (blackhole)
 	AutoSpeedLimitConfig      *AutoSpeedLimitConfig            `mapstructure:"AutoSpeedLimitConfig"`
 	GlobalDeviceLimitConfig   *limiter.GlobalDeviceLimitConfig `mapstructure:"GlobalDeviceLimitConfig"`
 	DeviceLimitWindow         int                              `mapstructure:"DeviceLimitWindow"` // seconds; sliding window for device_limit (default 60)
