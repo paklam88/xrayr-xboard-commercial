@@ -1,0 +1,27 @@
+# XrayR + XBoard production compose example
+# 1) Copy release/config/config.yml.example -> ./config/config.yml and edit PanelType: XBoard
+# 2) docker compose -f docker-compose.example.yml up -d
+
+services:
+  xrayr:
+    image: xrayr-xboard:latest
+    build:
+      context: .
+      platforms:
+        - linux/amd64
+        # - linux/arm64
+    container_name: xrayr-xboard
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      # Required: production UniProxy node config
+      - ./config/config.yml:/etc/XrayR/config.yml:ro
+      # Optional: certs / dns / route overlays referenced by config.yml
+      - ./config:/etc/XrayR:rw
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
